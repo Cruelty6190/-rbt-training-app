@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RBT Training App</title>
+<style>
+  :root {
+    --bg: #0f0f0f;
+    --surface: #1a1a1a;
+    --surface2: #242424;
+    --border: #2e2e2e;
+    --text: #f0ede8;
+    --muted: #888;
+    --accent: #c8f04a;
+    --accent-dim: rgba(200,240,74,0.12);
+    --teal: #4af0c8;
+    --coral: #f07a4a;
+    --purple: #a08cf0;
+    --blue: #4a9cf0;
+    --red: #f04a4a;
+    --radius: 10px;
+    --font: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'SF Mono', 'Fira Code', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; }
+
+  /* Layout */
+  .app { display: flex; min-height: 100vh; }
+  .sidebar { width: 240px; background: var(--surface); border-right: 1px solid var(--border); padding: 24px 16px; display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
+  .main { flex: 1; overflow-y: auto; }
+
+  /* Sidebar */
+  .logo { font-size: 13px; font-weight: 600; color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase; padding: 0 8px 20px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+  .nav-section { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; padding: 12px 8px 6px; }
+  .nav-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 7px; cursor: pointer; font-size: 13px; color: var(--muted); transition: all 0.15s; border: none; background: none; width: 100%; text-align: left; }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { background: var(--accent-dim); color: var(--accent); }
+  .nav-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .progress-bar-sm { height: 2px; background: var(--border); border-radius: 1px; margin: 4px 10px 0; overflow: hidden; }
+  .progress-fill-sm { height: 100%; background: var(--accent); border-radius: 1px; transition: width 0.3s; }
+
+  /* Pages */
+  .page { display: none; padding: 40px 48px; max-width: 900px; }
+  .page.active { display: block; }
+
+  /* Home */
+  .home-hero { margin-bottom: 40px; }
+  .home-hero h1 { font-size: 36px; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 8px; }
+  .home-hero h1 span { color: var(--accent); }
+  .home-hero p { color: var(--muted); font-size: 15px; line-height: 1.6; max-width: 520px; }
+
+  .domain-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 32px; }
+  .domain-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; cursor: pointer; transition: all 0.15s; }
+  .domain-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .domain-card-letter { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; margin-bottom: 8px; }
+  .domain-card-title { font-size: 13px; font-weight: 500; margin-bottom: 6px; }
+  .domain-card-pct { font-size: 11px; color: var(--muted); }
+  .domain-card-bar { height: 2px; border-radius: 1px; margin-top: 12px; opacity: 0.6; }
+
+  .quick-actions { display: flex; gap: 10px; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; }
+  .btn-primary { background: var(--accent); color: #0f0f0f; }
+  .btn-primary:hover { opacity: 0.9; }
+  .btn-ghost { background: var(--surface); border: 1px solid var(--border); color: var(--text); }
+  .btn-ghost:hover { border-color: var(--muted); }
+
+  /* Quiz */
+  .quiz-header { margin-bottom: 32px; }
+  .quiz-header h2 { font-size: 24px; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 6px; }
+  .quiz-meta { display: flex; gap: 16px; color: var(--muted); font-size: 13px; }
+
+  .domain-selector { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 28px; }
+  .domain-pill { padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface); font-size: 12px; cursor: pointer; transition: all 0.15s; color: var(--muted); }
+  .domain-pill:hover { border-color: var(--muted); color: var(--text); }
+  .domain-pill.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+  .quiz-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 28px; margin-bottom: 16px; }
+  .quiz-q-num { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; }
+  .quiz-question { font-size: 16px; font-weight: 500; line-height: 1.6; margin-bottom: 24px; }
+  .quiz-options { display: flex; flex-direction: column; gap: 8px; }
+  .quiz-option { padding: 13px 16px; border-radius: 8px; border: 1px solid var(--border); cursor: pointer; font-size: 14px; transition: all 0.15s; background: var(--surface2); text-align: left; color: var(--text); }
+  .quiz-option:hover:not(:disabled) { border-color: var(--accent); }
+  .quiz-option.correct { border-color: var(--teal); background: rgba(74,240,200,0.08); color: var(--teal); }
+  .quiz-option.incorrect { border-color: var(--coral); background: rgba(240,122,74,0.08); color: var(--coral); }
+  .quiz-option:disabled { cursor: default; }
+
+  .quiz-explanation { background: var(--surface2); border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0; padding: 14px 16px; margin-top: 16px; font-size: 13px; color: var(--muted); line-height: 1.6; display: none; }
+  .quiz-explanation.show { display: block; }
+  .quiz-explanation strong { color: var(--text); }
+
+  .quiz-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; }
+  .quiz-score-badge { font-size: 12px; padding: 4px 12px; background: var(--accent-dim); color: var(--accent); border-radius: 20px; font-weight: 500; }
+
+  /* Loading state */
+  .loading-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 40px; text-align: center; }
+  .spinner { width: 28px; height: 28px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { color: var(--muted); font-size: 14px; }
+
+  /* Modules page */
+  .modules-grid { display: flex; flex-direction: column; gap: 8px; }
+  .module-row { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; display: flex; align-items: center; gap: 16px; cursor: pointer; transition: all 0.15s; }
+  .module-row:hover { border-color: var(--muted); }
+  .module-code-badge { font-family: var(--mono); font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 5px; flex-shrink: 0; }
+  .module-row-title { font-size: 14px; font-weight: 500; flex: 1; }
+  .module-row-desc { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .module-row-right { display: flex; align-items: center; gap: 8px; }
+  .tag-sm { font-size: 10px; padding: 2px 7px; border-radius: 4px; border: 1px solid var(--border); color: var(--muted); }
+
+  /* Competency */
+  .competency-header { margin-bottom: 32px; }
+  .competency-header h2 { font-size: 24px; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 6px; }
+  .competency-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .comp-section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .comp-section h3 { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 14px; }
+  .checklist-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; line-height: 1.5; }
+  .checklist-item:last-child { border-bottom: none; }
+  .check-box { width: 16px; height: 16px; border: 1px solid var(--border); border-radius: 4px; flex-shrink: 0; margin-top: 1px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+  .check-box.checked { background: var(--accent); border-color: var(--accent); }
+  .check-box.checked::after { content: '✓'; font-size: 10px; color: #0f0f0f; font-weight: 700; }
+  .checklist-text { flex: 1; color: var(--text); }
+  .checklist-text.done { color: var(--muted); text-decoration: line-through; }
+
+  .supervision-tracker { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 16px; }
+  .sup-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .sup-label { font-size: 13px; color: var(--muted); width: 200px; flex-shrink: 0; }
+  .sup-input { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 7px 12px; font-size: 13px; color: var(--text); font-family: var(--font); width: 80px; }
+  .sup-input:focus { outline: none; border-color: var(--accent); }
+  .sup-result { font-size: 13px; font-weight: 600; }
+  .sup-result.ok { color: var(--teal); }
+  .sup-result.warn { color: var(--coral); }
+
+  /* Scenario trainer */
+  .scenario-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 28px; }
+  .scenario-tag { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 16px; color: var(--purple); }
+  .scenario-text { font-size: 15px; line-height: 1.7; margin-bottom: 24px; color: var(--text); }
+  .scenario-response { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 14px; font-size: 14px; color: var(--text); font-family: var(--font); resize: vertical; min-height: 100px; }
+  .scenario-response:focus { outline: none; border-color: var(--accent); }
+  .ai-feedback { background: var(--surface2); border-left: 3px solid var(--purple); border-radius: 0 8px 8px 0; padding: 16px; margin-top: 16px; font-size: 14px; line-height: 1.7; color: var(--text); display: none; }
+  .ai-feedback.show { display: block; }
+  .ai-feedback-label { font-size: 11px; color: var(--purple); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; font-weight: 600; }
+
+  /* Page header */
+  .page-header { margin-bottom: 32px; }
+  .page-header h2 { font-size: 24px; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 6px; }
+  .page-header p { font-size: 14px; color: var(--muted); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .page { padding: 24px 20px; }
+    .domain-cards { grid-template-columns: 1fr 1fr; }
+    .competency-grid-2 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="logo">RBT Prep</div>
+
+    <div class="nav-section">Learn</div>
+    <button class="nav-item active" onclick="showPage('home')">
+      <div class="nav-dot" style="background:#c8f04a;"></div> Dashboard
+    </button>
+    <button class="nav-item" onclick="showPage('modules')">
+      <div class="nav-dot" style="background:#4af0c8;"></div> Modules
+    </button>
+    <button class="nav-item" onclick="showPage('quiz')">
+      <div class="nav-dot" style="background:#f07a4a;"></div> Quiz Bank
+    </button>
+
+    <div class="nav-section">Practice</div>
+    <button class="nav-item" onclick="showPage('scenarios')">
+      <div class="nav-dot" style="background:#a08cf0;"></div> Ethics Scenarios
+    </button>
+    <button class="nav-item" onclick="showPage('competency')">
+      <div class="nav-dot" style="background:#4a9cf0;"></div> Competency Tracker
+    </button>
+    <button class="nav-item" onclick="showPage('supervision')">
+      <div class="nav-dot" style="background:#f04a4a;"></div> Supervision Log
+    </button>
+  </nav>
+
+  <!-- Main content -->
+  <div class="main">
+
+    <!-- HOME -->
+    <div class="page active" id="page-home">
+      <div style="padding:40px 48px;">
+        <div class="home-hero">
+          <h1>RBT <span>Competency</span><br>Training App</h1>
+          <p>BACB-aligned training across all 6 exam domains. 2026 Handbook. Ethics Code 2.0. Initial Competency Assessment ready.</p>
+        </div>
+
+        <div class="domain-cards">
+          <div class="domain-card" onclick="showPage('quiz')">
+            <div class="domain-card-letter" style="color:#4af0c8;">Domain A</div>
+            <div class="domain-card-title">Data Collection & Graphing</div>
+            <div class="domain-card-pct">17% of exam · 13 questions</div>
+            <div class="domain-card-bar" style="background:#4af0c8;height:2px;border-radius:1px;margin-top:12px;width:17%;"></div>
+          </div>
+          <div class="domain-card" onclick="showPage('quiz')">
+            <div class="domain-card-letter" style="color:#a08cf0;">Domain B</div>
+            <div class="domain-card-title">Behavior Assessment</div>
+            <div class="domain-card-pct">11% of exam · 8 questions</div>
+            <div class="domain-card-bar" style="background:#a08cf0;height:2px;border-radius:1px;margin-top:12px;width:11%;"></div>
+          </div>
+          <div class="domain-card" onclick="showPage('quiz')">
+            <div class="domain-card-letter" style="color:#f07a4a;">Domain C</div>
+            <div class="domain-card-title">Behavior Acquisition</div>
+            <div class="domain-card-pct">25% of exam · 19 questions</div>
+            <div class="domain-card-bar" style="background:#f07a4a;height:2px;border-radius:1px;margin-top:12px;width:25%;"></div>
+          </div>
+          <div class="domain-card" onclick="showPage('quiz')">
+            <div class="domain-card-letter" style="color:#f04a4a;">Domain D</div>
+            <div class="domain-card-title">Behavior Reduction</div>
+            <div class="domain-card-pct">19% of exam · 14 questions</div>
+            <div class="domain-card-bar" style="background:#f04a4a;height:2px;border-radius:1px;margin-top:12px;width:19%;"></div>
+          </div>
+          <div class="domain-card" onclick="showPage('quiz')">
+            <div class="domain-card-letter" style="color:#4a9cf0;">Domain E</div>
+            <div class="domain-card-title">Documentation & Reporting</div>
+            <div class="domain-card-pct">13% of exam · 10 questions</div>
+            <div class="domain-card-bar" style="background:#4a9cf0;height:2px;border-radius:1px;margin-top:12px;width:13%;"></div>
+          </div>
+          <div class="domain-card" onclick="showPage('quiz')">
+            <div class="domain-card-letter" style="color:#c8f04a;">Domain F</div>
+            <div class="domain-card-title">Ethics</div>
+            <div class="domain-card-pct">15% of exam · 11 questions</div>
+            <div class="domain-card-bar" style="background:#c8f04a;height:2px;border-radius:1px;margin-top:12px;width:15%;"></div>
+          </div>
+        </div>
+
+        <div class="quick-actions">
+          <button class="btn btn-primary" onclick="showPage('quiz')">▶ Start Quiz</button>
+          <button class="btn btn-ghost" onclick="showPage('scenarios')">Ethics Scenarios</button>
+          <button class="btn btn-ghost" onclick="showPage('competency')">Competency Checklist</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODULES -->
+    <div class="page" id="page-modules">
+      <div class="page-header">
+        <h2>Training Modules</h2>
+        <p>30 modules across 6 BACB exam domains · RBT TCO 3rd ed.</p>
+      </div>
+      <div class="modules-grid" id="modules-list"></div>
+    </div>
+
+    <!-- QUIZ -->
+    <div class="page" id="page-quiz">
+      <div class="quiz-header">
+        <h2>Quiz Bank</h2>
+        <div class="quiz-meta">
+          <span>AI-generated · BACB exam style</span>
+          <span id="quiz-score-display">Score: 0/0</span>
+        </div>
+      </div>
+
+      <div class="domain-selector">
+        <div class="domain-pill active" onclick="selectDomain('all', this)">All Domains</div>
+        <div class="domain-pill" onclick="selectDomain('A', this)" style="border-color:#4af0c850;">A · Data</div>
+        <div class="domain-pill" onclick="selectDomain('B', this)" style="border-color:#a08cf050;">B · Assessment</div>
+        <div class="domain-pill" onclick="selectDomain('C', this)" style="border-color:#f07a4a50;">C · Acquisition</div>
+        <div class="domain-pill" onclick="selectDomain('D', this)" style="border-color:#f04a4a50;">D · Reduction</div>
+        <div class="domain-pill" onclick="selectDomain('E', this)" style="border-color:#4a9cf050;">E · Documentation</div>
+        <div class="domain-pill" onclick="selectDomain('F', this)" style="border-color:#c8f04a50;">F · Ethics</div>
+      </div>
+
+      <div id="quiz-container">
+        <div class="loading-card">
+          <div class="spinner"></div>
+          <div class="loading-text">Generating question...</div>
+        </div>
+      </div>
+
+      <div class="quiz-nav">
+        <div class="quiz-score-badge" id="quiz-score-badge">0 correct</div>
+        <button class="btn btn-primary" id="next-btn" onclick="loadQuestion()" style="display:none;">Next question →</button>
+      </div>
+    </div>
+
+    <!-- SCENARIOS -->
+    <div class="page" id="page-scenarios">
+      <div class="page-header">
+        <h2>Ethics Scenarios</h2>
+        <p>Practice responding to real-world ethical dilemmas · RBT Ethics Code 2.0 · 29 standards</p>
+      </div>
+
+      <div id="scenario-container">
+        <div class="loading-card">
+          <div class="spinner"></div>
+          <div class="loading-text">Loading scenario...</div>
+        </div>
+      </div>
+
+      <div style="margin-top:16px;display:flex;gap:10px;">
+        <button class="btn btn-ghost" onclick="loadScenario()">New scenario</button>
+      </div>
+    </div>
+
+    <!-- COMPETENCY -->
+    <div class="page" id="page-competency">
+      <div class="competency-header">
+        <h2>Competency Tracker</h2>
+        <p style="color:var(--muted);font-size:14px;">RBT Initial Competency Assessment · 2026 BACB Requirements</p>
+      </div>
+
+      <div class="competency-grid-2">
+        <div class="comp-section">
+          <h3>Knowledge checks</h3>
+          <div id="knowledge-checklist"></div>
+        </div>
+        <div class="comp-section">
+          <h3>Performance tasks</h3>
+          <div id="performance-checklist"></div>
+        </div>
+      </div>
+
+      <div class="comp-section" style="margin-top:0;">
+        <h3>Certification requirements</h3>
+        <div id="cert-checklist"></div>
+      </div>
+    </div>
+
+    <!-- SUPERVISION -->
+    <div class="page" id="page-supervision">
+      <div class="page-header">
+        <h2>Supervision Log</h2>
+        <p>Track your 5% monthly minimum · BACB 2026 requirements</p>
+      </div>
+
+      <div class="supervision-tracker">
+        <h3 style="font-size:14px;font-weight:600;margin-bottom:20px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;">Monthly calculator</h3>
+        <div class="sup-row">
+          <span class="sup-label">Total service hours this month</span>
+          <input class="sup-input" type="number" id="total-hours" placeholder="40" oninput="calcSupervision()">
+        </div>
+        <div class="sup-row">
+          <span class="sup-label">Supervision hours received</span>
+          <input class="sup-input" type="number" id="sup-hours" placeholder="2" oninput="calcSupervision()">
+        </div>
+        <div class="sup-row">
+          <span class="sup-label">Minimum required (5%)</span>
+          <span class="sup-result" id="min-required">—</span>
+        </div>
+        <div class="sup-row">
+          <span class="sup-label">Status</span>
+          <span class="sup-result" id="sup-status">Enter hours above</span>
+        </div>
+      </div>
+
+      <div class="comp-section">
+        <h3>Supervision structure requirements</h3>
+        <div id="supervision-checklist"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── Data ──────────────────────────────────────────────────────────────────
+const MODULES = [
+  {code:'A-1',domain:'A',color:'#4af0c8',title:'Continuous Measurement Methods',desc:'Frequency, rate, duration, latency, IRT'},
+  {code:'A-2',domain:'A',color:'#4af0c8',title:'Discontinuous Measurement',desc:'Interval recording, momentary time sampling'},
+  {code:'A-3',domain:'A',color:'#4af0c8',title:'Graphing and Visual Analysis',desc:'Line graphs, trend identification, phase lines'},
+  {code:'A-4',domain:'A',color:'#4af0c8',title:'Data Collection in Sessions',desc:'IOA, data integrity, reporting concerns'},
+  {code:'B-1',domain:'B',color:'#a08cf0',title:'Preference Assessments',desc:'Free operant, MSWO, paired-stimulus procedures'},
+  {code:'B-2',domain:'B',color:'#a08cf0',title:'Functional Assessment Support',desc:'ABC data, scatter plots, four functions of behavior'},
+  {code:'B-3',domain:'B',color:'#a08cf0',title:'Skills Assessments',desc:'VB-MAPP, ABLLS-R administration support'},
+  {code:'C-1',domain:'C',color:'#f07a4a',title:'Discrete Trial Teaching',desc:'SD-response-consequence, ITI, error correction'},
+  {code:'C-2',domain:'C',color:'#f07a4a',title:'Naturalistic Environment Teaching',desc:'Incidental teaching, pivotal response training'},
+  {code:'C-3',domain:'C',color:'#f07a4a',title:'Prompting and Prompt Fading',desc:'Hierarchies, LTM/MTL, time delay, stimulus fading'},
+  {code:'C-4',domain:'C',color:'#f07a4a',title:'Reinforcement Procedures',desc:'Schedules, token economies, CRF vs. intermittent'},
+  {code:'C-5',domain:'C',color:'#f07a4a',title:'Generalization and Maintenance',desc:'Stimulus/response generalization, booster sessions'},
+  {code:'C-6',domain:'C',color:'#f07a4a',title:'Verbal Behavior Programs',desc:'Mand, tact, echoic, intraverbal, LRFFC'},
+  {code:'C-7',domain:'C',color:'#f07a4a',title:'Shaping, Chaining, Task Analysis',desc:'Successive approximations, forward/backward chaining'},
+  {code:'C-8',domain:'C',color:'#f07a4a',title:'Social Skills and Play',desc:'Turn-taking, joint attention, ADHD skill building'},
+  {code:'D-1',domain:'D',color:'#f04a4a',title:'Differential Reinforcement',desc:'DRA, DRI, DRO, DRL, DRH — selection and implementation'},
+  {code:'D-2',domain:'D',color:'#f04a4a',title:'Extinction Procedures',desc:'Function-matched extinction, extinction bursts'},
+  {code:'D-3',domain:'D',color:'#f04a4a',title:'Antecedent Modification',desc:'NCR, demand fading, environmental modifications'},
+  {code:'D-4',domain:'D',color:'#f04a4a',title:'Behavior Intervention Plans',desc:'BIP fidelity, proactive and reactive strategies'},
+  {code:'D-5',domain:'D',color:'#f04a4a',title:'Crisis Safety Procedures',desc:'De-escalation, mandated reporting, emergency protocols'},
+  {code:'D-6',domain:'D',color:'#f04a4a',title:'Punishment Procedures',desc:'Response cost, time-out, ethical constraints'},
+  {code:'E-1',domain:'E',color:'#4a9cf0',title:'Session Notes and Reporting',desc:'Objective documentation, legal record standards'},
+  {code:'E-2',domain:'E',color:'#4a9cf0',title:'Confidentiality and HIPAA',desc:'PHI, minimum necessary, disclosure rules'},
+  {code:'E-3',domain:'E',color:'#4a9cf0',title:'Communicating with Supervisors',desc:'Reporting concerns, scope limits, feedback'},
+  {code:'E-4',domain:'E',color:'#4a9cf0',title:'Billing Integrity',desc:'Accurate records, prohibited billing, IRS classification'},
+  {code:'F-1',domain:'F',color:'#c8f04a',title:'RBT Ethics Code 2.0 Overview',desc:'29 standards across 3 sections'},
+  {code:'F-2',domain:'F',color:'#c8f04a',title:'Scope of Practice and Boundaries',desc:'Role limits, dual relationships, supervision'},
+  {code:'F-3',domain:'F',color:'#c8f04a',title:'Self-Reporting Requirements',desc:'Critical events, health conditions, 30-day rule'},
+  {code:'F-4',domain:'F',color:'#c8f04a',title:'Ongoing Supervision Requirements',desc:'5% minimum, structure, documentation, audits'},
+  {code:'F-5',domain:'F',color:'#c8f04a',title:'Recertification and PD',desc:'2-year cycle, 12 CEUs, competency reassessment'},
+];
+
+const KNOWLEDGE_ITEMS = [
+  'Define continuous vs. discontinuous measurement methods',
+  'Identify the four functions of behavior',
+  'Distinguish DRA, DRI, DRO, DRL, and DRH procedures',
+  'Explain the DTT 3-term contingency (SD→R→C)',
+  'Describe all 29 RBT Ethics Code 2.0 standards',
+  'Explain the 5% monthly supervision requirement',
+  'Identify HIPAA-protected health information',
+  'Calculate response rate per hour from frequency data',
+];
+
+const PERFORMANCE_ITEMS = [
+  'Conduct a preference assessment (paired-stimulus)',
+  'Record frequency and duration data during live observation',
+  'Implement DTT with ≥80% procedural fidelity',
+  'Demonstrate a full LTM prompt hierarchy',
+  'Operate a token economy system correctly',
+  'Complete a task analysis data sheet during chaining',
+  'Role-play two ethical dilemma responses',
+  'Write an objective, legally-sound session note',
+];
+
+const CERT_ITEMS = [
+  'Complete 40-hour training (minimum 5 days)',
+  'Pass criminal background check (within 180 days)',
+  'Pass abuse registry check (within 180 days)',
+  'Complete Initial Competency Assessment (within 90 days of application)',
+  'Create BACB account with legal name',
+  'Submit RBT Certification Application Attestation form',
+  'Pass RBT examination at Pearson VUE testing center',
+  'Have RBT Supervisor/Requirements Coordinator listed in BACB registry',
+];
+
+const SUPERVISION_ITEMS = [
+  'Minimum 2 face-to-face real-time contacts per month',
+  'At least 1 contact includes direct observation of service delivery',
+  'At least 1 contact is individual (1-on-1, no other RBTs)',
+  'Supervisor observes client services at least once per month',
+  'Documentation maintained for 7 years (audit-ready)',
+  'Supervision is client-focused (not counted as professional development)',
+];
+
+// ── State ─────────────────────────────────────────────────────────────────
+let quizDomain = 'all';
+let quizScore = { correct: 0, total: 0 };
+let currentQ = null;
+let answered = false;
+let checks = {};
+
+// ── Navigation ────────────────────────────────────────────────────────────
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  const navBtns = document.querySelectorAll('.nav-item');
+  navBtns.forEach(btn => { if (btn.getAttribute('onclick')?.includes(id)) btn.classList.add('active'); });
+
+  if (id === 'quiz' && !currentQ) loadQuestion();
+  if (id === 'scenarios') loadScenario();
+  if (id === 'modules') renderModules();
+  if (id === 'competency') renderCompetency();
+  if (id === 'supervision') renderSupervision();
+}
+
+// ── Modules ───────────────────────────────────────────────────────────────
+function renderModules() {
+  const list = document.getElementById('modules-list');
+  list.innerHTML = MODULES.map(m => `
+    <div class="module-row">
+      <span class="module-code-badge" style="background:${m.color}20;color:${m.color};">${m.code}</span>
+      <div style="flex:1;">
+        <div class="module-row-title">${m.title}</div>
+        <div class="module-row-desc">${m.desc}</div>
+      </div>
+      <span class="tag-sm">Domain ${m.domain}</span>
+    </div>
+  `).join('');
+}
+
+// ── Quiz ──────────────────────────────────────────────────────────────────
+function selectDomain(d, el) {
+  document.querySelectorAll('.domain-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  quizDomain = d;
+  currentQ = null;
+  loadQuestion();
+}
+
+async function loadQuestion() {
+  answered = false;
+  document.getElementById('next-btn').style.display = 'none';
+  document.getElementById('quiz-container').innerHTML = `
+    <div class="loading-card">
+      <div class="spinner"></div>
+      <div class="loading-text">Generating question...</div>
+    </div>`;
+
+  const domainContext = quizDomain === 'all'
+    ? 'any of the 6 BACB RBT exam domains (A: Data Collection, B: Behavior Assessment, C: Behavior Acquisition, D: Behavior Reduction, E: Documentation, F: Ethics)'
+    : ({
+        A: 'Domain A: Data Collection and Graphing (frequency, rate, duration, latency, IRT, interval recording, graphing)',
+        B: 'Domain B: Behavior Assessment (preference assessments, functional assessment, skills assessments)',
+        C: 'Domain C: Behavior Acquisition (DTT, NET, prompting, reinforcement, generalization, verbal behavior, shaping, chaining)',
+        D: 'Domain D: Behavior Reduction (differential reinforcement, extinction, antecedent modification, BIPs, crisis safety)',
+        E: 'Domain E: Documentation and Reporting (session notes, HIPAA, confidentiality, billing)',
+        F: 'Domain F: Ethics (RBT Ethics Code 2.0, scope of practice, self-reporting, supervision requirements)',
+      })[quizDomain];
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: `Generate one BACB RBT exam-style multiple choice question about ${domainContext}. 
+
+Return ONLY valid JSON, no markdown, no explanation:
+{
+  "domain": "letter only e.g. C",
+  "topic": "short topic name",
+  "question": "the question text",
+  "options": ["A. ...", "B. ...", "C. ...", "D. ..."],
+  "correct": 0,
+  "explanation": "2-3 sentence explanation of the correct answer with BACB rationale"
+}
+
+Rules: 4 options, exactly 1 correct, realistic clinical scenario, entry-level RBT difficulty. The correct field is the 0-based index of the correct option.`
+        }]
+      })
+    });
+    const data = await res.json();
+    const text = data.content[0].text.replace(/```json|```/g,'').trim();
+    currentQ = JSON.parse(text);
+    renderQuestion(currentQ);
+  } catch(e) {
+    document.getElementById('quiz-container').innerHTML = `
+      <div class="quiz-card">
+        <div style="color:var(--coral);font-size:14px;">Could not load question. Check your connection and try again.</div>
+        <button class="btn btn-ghost" style="margin-top:16px;" onclick="loadQuestion()">Retry</button>
+      </div>`;
+  }
+}
+
+function renderQuestion(q) {
+  const domainColors = {A:'#4af0c8',B:'#a08cf0',C:'#f07a4a',D:'#f04a4a',E:'#4a9cf0',F:'#c8f04a'};
+  const color = domainColors[q.domain] || '#c8f04a';
+  document.getElementById('quiz-container').innerHTML = `
+    <div class="quiz-card">
+      <div class="quiz-q-num" style="color:${color};">Domain ${q.domain} · ${q.topic}</div>
+      <div class="quiz-question">${q.question}</div>
+      <div class="quiz-options">
+        ${q.options.map((opt, i) => `
+          <button class="quiz-option" onclick="selectAnswer(${i})" id="opt-${i}">${opt}</button>
+        `).join('')}
+      </div>
+      <div class="quiz-explanation" id="explanation">
+        <strong>Explanation:</strong> ${q.explanation}
+      </div>
+    </div>`;
+}
+
+function selectAnswer(idx) {
+  if (answered) return;
+  answered = true;
+  quizScore.total++;
+
+  const correct = currentQ.correct;
+  document.querySelectorAll('.quiz-option').forEach((el, i) => {
+    el.disabled = true;
+    if (i === correct) el.classList.add('correct');
+    else if (i === idx) el.classList.add('incorrect');
+  });
+
+  if (idx === correct) {
+    quizScore.correct++;
+  }
+
+  document.getElementById('explanation').classList.add('show');
+  document.getElementById('next-btn').style.display = 'flex';
+  document.getElementById('quiz-score-badge').textContent = `${quizScore.correct} of ${quizScore.total} correct`;
+  document.getElementById('quiz-score-display').textContent = `Score: ${quizScore.correct}/${quizScore.total}`;
+}
+
+// ── Scenarios ─────────────────────────────────────────────────────────────
+async function loadScenario() {
+  document.getElementById('scenario-container').innerHTML = `
+    <div class="loading-card">
+      <div class="spinner"></div>
+      <div class="loading-text">Loading scenario...</div>
+    </div>`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 600,
+        messages: [{
+          role: 'user',
+          content: `Generate a realistic RBT ethics scenario for training. Return ONLY valid JSON:
+{
+  "standard": "relevant RBT Ethics Code 2.0 standard name",
+  "scenario": "2-3 sentence realistic clinical scenario describing an ethical dilemma an RBT faces",
+  "prompt": "What should the RBT do in this situation?"
+}
+Make it realistic and challenging — boundary violations, confidentiality, scope of practice, or dual relationships.`
+        }]
+      })
+    });
+    const data = await res.json();
+    const text = data.content[0].text.replace(/```json|```/g,'').trim();
+    const s = JSON.parse(text);
+
+    document.getElementById('scenario-container').innerHTML = `
+      <div class="scenario-card">
+        <div class="scenario-tag">Ethics Code 2.0 · ${s.standard}</div>
+        <div class="scenario-text">${s.scenario}</div>
+        <div style="font-size:14px;font-weight:500;margin-bottom:10px;color:var(--muted);">${s.prompt}</div>
+        <textarea class="scenario-response" id="scenario-answer" placeholder="Describe how you would respond and why..."></textarea>
+        <div style="margin-top:12px;">
+          <button class="btn btn-primary" onclick="submitScenario('${encodeURIComponent(JSON.stringify(s))}')">Get AI feedback →</button>
+        </div>
+        <div class="ai-feedback" id="ai-feedback">
+          <div class="ai-feedback-label">Supervisor feedback</div>
+          <div id="ai-feedback-text"></div>
+        </div>
+      </div>`;
+  } catch(e) {
+    document.getElementById('scenario-container').innerHTML = `
+      <div class="scenario-card" style="color:var(--coral);">Could not load scenario. Try again.</div>`;
+  }
+}
+
+async function submitScenario(encodedScenario) {
+  const s = JSON.parse(decodeURIComponent(encodedScenario));
+  const answer = document.getElementById('scenario-answer').value.trim();
+  if (!answer) return;
+
+  const fb = document.getElementById('ai-feedback');
+  const fbText = document.getElementById('ai-feedback-text');
+  fb.classList.add('show');
+  fbText.textContent = 'Analyzing your response...';
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 500,
+        messages: [{
+          role: 'user',
+          content: `You are an RBT supervisor reviewing a trainee's response to an ethics scenario.
+
+Scenario: ${s.scenario}
+Relevant standard: ${s.standard}
+Trainee response: ${answer}
+
+Give brief, constructive feedback (3-4 sentences): what they got right, what they missed, and the correct course of action per the RBT Ethics Code 2.0. Be direct but supportive.`
+        }]
+      })
+    });
+    const data = await res.json();
+    fbText.textContent = data.content[0].text;
+  } catch(e) {
+    fbText.textContent = 'Could not get feedback. Try again.';
+  }
+}
+
+// ── Competency ────────────────────────────────────────────────────────────
+function renderCompetency() {
+  renderChecklist('knowledge-checklist', KNOWLEDGE_ITEMS, 'k');
+  renderChecklist('performance-checklist', PERFORMANCE_ITEMS, 'p');
+  renderChecklist('cert-checklist', CERT_ITEMS, 'c');
+}
+
+function renderChecklist(containerId, items, prefix) {
+  document.getElementById(containerId).innerHTML = items.map((item, i) => {
+    const key = prefix + i;
+    const checked = checks[key];
+    return `
+      <div class="checklist-item">
+        <div class="check-box ${checked ? 'checked' : ''}" onclick="toggleCheck('${key}', this, this.nextElementSibling)"></div>
+        <span class="checklist-text ${checked ? 'done' : ''}">${item}</span>
+      </div>`;
+  }).join('');
+}
+
+function toggleCheck(key, box, text) {
+  checks[key] = !checks[key];
+  box.classList.toggle('checked', checks[key]);
+  text.classList.toggle('done', checks[key]);
+}
+
+// ── Supervision ───────────────────────────────────────────────────────────
+function renderSupervision() {
+  renderChecklist('supervision-checklist', SUPERVISION_ITEMS, 's');
+}
+
+function calcSupervision() {
+  const total = parseFloat(document.getElementById('total-hours').value) || 0;
+  const sup = parseFloat(document.getElementById('sup-hours').value) || 0;
+  const min = (total * 0.05).toFixed(1);
+  document.getElementById('min-required').textContent = min + ' hrs';
+  if (total === 0) {
+    document.getElementById('sup-status').textContent = 'Enter hours above';
+    document.getElementById('sup-status').className = 'sup-result';
+    return;
+  }
+  if (sup >= min) {
+    document.getElementById('sup-status').textContent = '✓ Compliant';
+    document.getElementById('sup-status').className = 'sup-result ok';
+  } else {
+    document.getElementById('sup-status').textContent = `⚠ Need ${(min - sup).toFixed(1)} more hrs`;
+    document.getElementById('sup-status').className = 'sup-result warn';
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+showPage('home');
+</script>
+</body>
+</html>
