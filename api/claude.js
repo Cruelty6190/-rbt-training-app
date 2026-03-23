@@ -20,11 +20,17 @@ export default async function handler(req) {
     const apiKey = process.env.ANTHROPIC_API_KEY;
 
     if (!apiKey) {
-      return new Response(JSON.stringify({ error: 'API key not configured' }), {
+      return new Response(JSON.stringify({ error: 'ANTHROPIC_API_KEY not set in environment variables' }), {
         status: 500,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
+
+    const anthropicRequest = {
+      model: body.model || 'claude-sonnet-4-20250514',
+      max_tokens: body.max_tokens || 1000,
+      messages: body.messages,
+    };
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -33,12 +39,20 @@ export default async function handler(req) {
         'x-api-key': apiKey,
         'anthropic-version': '2023-06-01',
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(anthropicRequest),
     });
 
     const data = await response.json();
+
+    if (!response.ok) {
+      return new Response(JSON.stringify({ error: data.error || 'Anthropic API error', status: response.status, detail: data }), {
+        status: response.status,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
     return new Response(JSON.stringify(data), {
-      status: response.status,
+      status: 200,
       headers: {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
@@ -47,7 +61,7 @@ export default async function handler(req) {
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
   }
 }
